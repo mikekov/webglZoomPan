@@ -1,4 +1,6 @@
-# WaferMap
+# webglZooomPan
+
+This is an experiment: event (point) 2D viewer using three.js (webGL). Zooming/panning/selection with orthographic camera.
 
 This project was generated with [Angular CLI](https://github.com/angular/angular-cli) version 8.2.0.
 
