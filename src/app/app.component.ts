@@ -13,5 +13,15 @@ export class AppComponent {
 		}
 	}
 
+	setDotSize(n: number) {
+		this.dotSize = n / 2;
+	}
+
+	enableDensity(en) {
+		this.density = en;
+	}
+
+	density = false;
+	dotSize = 3;
 	defCount = 100;
 }

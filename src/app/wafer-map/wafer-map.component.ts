@@ -2,11 +2,10 @@ import { Component, OnInit, ElementRef, Input, NgZone, OnDestroy, ViewEncapsulat
 import * as three from 'three';
 import { MapControls } from '../map-controls';
 import { Sphere, Material } from 'three';
-// import {}
 
 // colors
 const WAFER = 0x000000;
-const PERIMETER = 0x303030;
+const PERIMETER = 0x404040;
 const DIE = 0x181818;
 const DEFECTS = 0x20c0ff;
 const BACKGND = 0x1e1e1e;
@@ -17,14 +16,14 @@ function createWaferShape(diameter: number): three.Group {
 	const N = 200;
 	const material = new three.MeshBasicMaterial({ color: WAFER });
 	const mesh = new three.Mesh(new three.CircleBufferGeometry(diameter / 2, N), material);
-	mesh.position.set(0, 0, -100);
+	mesh.position.set(0, 0, 0);
 
 	const m = new three.LineBasicMaterial({linewidth: 2.0, color: PERIMETER});
 	const geometry = new three.CircleGeometry(diameter / 2, N);
 	geometry.computeBoundingSphere();
 	geometry.vertices.shift();
 	const m2 = new three.LineLoop(geometry, m);
-	m2.position.set(0, 0, -99);
+	m2.position.set(0, 0, 11);
 
 	const group = new three.Group();
 	group.add(mesh);
@@ -98,7 +97,8 @@ function generateDefects(diameter: number, count: number, offset): number[] {
 		pos.push(p[1] - 0.5);
 		// pos.push(-1 + i / count);
 	}
-//*
+/*
+// defects at nm distances
 pos.push(0);
 pos.push(0);
 pos.push(0);
@@ -114,7 +114,7 @@ pos.push(0);
 pos.push(-0.000001);
 pos.push(0.000002);
 pos.push(0);
-//*/
+*/
 
 	return pos;
 }
@@ -136,12 +136,23 @@ export class WaferMapComponent implements OnInit, OnDestroy {
 		}
 	}
 
+	@Input()
+	set pointSize(s: number) {
+		this.dotSize = s;
+		this.render();
+	}
+
+	@Input()
+	set alphaBlending(enable: boolean) {
+		this.enableAlphaBlending = enable;
+		this.render();
+	}
+
 	constructor(el: ElementRef, private zone: NgZone) {
 		this.el = el.nativeElement;
 	}
 
 	addDefects() {
-		// return;
 		const diameter = 300;
 		if (this._defects) {
 			this.scene.remove(this._defects);
@@ -156,15 +167,14 @@ export class WaferMapComponent implements OnInit, OnDestroy {
 			if (geo.boundingSphere === null) { geo.boundingSphere = new Sphere(); }
 			geo.boundingSphere.set(new three.Vector3(0, 0, 0), diameter / 2);
 		};
-		// try { geo.computeBoundingSphere(); } catch (e) {
-			// console.log('fehler', e);
-		// }
-		// const material = new three.PointsMaterial({ size: 2.4, color: 0x20c0ff });
+
 		this.defectMaterial = new three.ShaderMaterial({
+			transparent: true,
+			blending: three.AdditiveBlending,
+			depthWrite: false,
 			uniforms: {
-				// time: { value: 1.0 },
-				// resolution: { value: new three.Vector2() },
-				pointSize: { value: DOT_SIZE * window.devicePixelRatio },
+				pointSize: { value: this.dotSize * window.devicePixelRatio },
+				pointAlpha: { value: this.enableAlphaBlending ? 0.5 : 1.0 },
 				defColor: {value: DEFECTS},
 				bottomLeft: {value: new three.Vector2(-100, -100)},
 				topRight: {value: new three.Vector2(100, 100)},
@@ -176,10 +186,10 @@ uniform vec2 topRight;
 uniform vec2 bottomLeft;
 
 void main() {
-	gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+	gl_Position = projectionMatrix * modelViewMatrix * vec4(position.x, position.y, 0.0, 1.0);
 	gl_PointSize = pointSize;
+	// bounding selection box test:
 	if (position.x >= bottomLeft.x && position.x <= topRight.x && position.y >= bottomLeft.y && position.y <= topRight.y) {
-	// if (position.x >= bottomLeft.x && position.y >= bottomLeft.y) {
 		zcolor = 1.0; // inside box
 	}
 	else {
@@ -188,19 +198,24 @@ void main() {
 }`,
 			fragmentShader: `
 varying float zcolor;
+uniform float pointAlpha;
 
 void main() {
 	if (zcolor > 0.0) {
-		gl_FragColor = vec4(0.0, 0.6, 1.0, 1.0);
+		gl_FragColor = vec4(0.2, 0.8, 1.0, 1.0) * pointAlpha;
 	}
 	else {
-		gl_FragColor = vec4(0.4, 0.4, 0.4, 1.0);
+		gl_FragColor = vec4(0.6, 0.6, 0.6, 1.0) * pointAlpha;
 	}
 }`
 		});
+		// this.defectMaterial.depthWrite = false;
+		this.updateAlpha();
 		const points = new three.Points(geo, this.defectMaterial);
+		points.position.set(0, 0, 900);
 		this.scene.add(points);
 		this._defects = points;
+		// if (this.renderer) this.renderer.clear();
 		this.render();
 	}
 
@@ -208,6 +223,10 @@ void main() {
 		if (this._resize) {
 			this._resize.unobserve(this.el);
 		}
+		// dispose of resources
+		[this.renderer, this.scene, this.defectMaterial, this.controls]
+			.filter(obj => obj && obj.dispose)
+			.forEach(obj => obj.dispose());
 	}
 
 	private get viewportSize(): {w: number, h: number} {
@@ -248,10 +267,6 @@ void main() {
 				camera.top = h / 2;
 				camera.bottom = -h / 2;
 			}
-			// camera.left = -size.w / 4;
-			// camera.right = size.w / 4;
-			// camera.top = size.h / 4;
-			// camera.bottom = -size.h / 4;
 		}
 		camera.updateProjectionMatrix();
 	}
@@ -261,28 +276,21 @@ void main() {
 		this.scene.background = new three.Color(BACKGND);
 
 		const circle = createWaferShape(300);
-		circle.position.set(0, 0, -99);
+		circle.position.set(0, 0, 100);
 		this.scene.add(circle);
 
 		const dies = generateDieMap(300, 10, 12, this.offset, 0.1);
-		dies.position.set(0, 0, -90);
+		dies.position.set(0, 0, 110);
 		this.scene.add(dies);
 
-/*
-		const def = generateDefects(300, this._defCount, this.offset);
-		const geo = new three.BufferGeometry();
-		geo.addAttribute('position', new three.Float32BufferAttribute(def, 3));
-		const material = new three.PointsMaterial({size: 2.4, color: 0x20e0ff});
-		const points = new three.Points(geo, material);
-		this.scene.add(points);
-*/
 		this.addDefects();
 
-		this.camera = new three.OrthographicCamera(0, 0, 0, 0, -1000, 1000);
+		this.camera = new three.OrthographicCamera(0, 0, 0, 0, 0, 1000);
 		this.updateCameraSize();
-		this.camera.position.set(0, 0, 99);
+		this.camera.position.set(0, 0, 999);
+		// this.camera.lookAt(0, 0, 0);
 
-		this.renderer = new three.WebGLRenderer({antialias: false, alpha: false});
+		this.renderer = new three.WebGLRenderer({antialias: false, alpha: true});
 		this.renderer.setPixelRatio(window.devicePixelRatio);
 		const vsize = this.viewportSize;
 		this.renderer.setSize(vsize.w, vsize.h);
@@ -294,6 +302,7 @@ void main() {
 		controls.maxZoom = 1e8;
 		controls.zoomSpeed = 4;
 		controls.screenSpacePanning = true;
+		controls.keyPanSpeed = 10 * window.devicePixelRatio;
 		controls.addEventListener('change', () => { this.render(); });
 		controls.enableDamping = false;
 		controls.enableSelect = true;
@@ -303,7 +312,6 @@ void main() {
 			this.render();
 		}); };
 		this.controls = controls;
-		// console.log(this.camera['zoom']);
 
 		if (ResizeObserver) {
 			this._resize = new ResizeObserver((e) => { this.zone.run(() => {
@@ -320,15 +328,38 @@ void main() {
 		this.render();
 	}
 
-	render() {
-		if (this._selectionWorldRect) { // this.controls && this.controls.hasSelectRect() && this.defectMaterial) {
-			const rect = this._selectionWorldRect; // this.controls.getSelectRect(true);
-			this.defectMaterial.uniforms['topRight'].value = new three.Vector2(rect.right, rect.top);
-			this.defectMaterial.uniforms['bottomLeft'].value = new three.Vector2(rect.left, rect.bottom);
+	updateAlpha() {
+		if (this.defectMaterial) {
+			const rect = this._selectionWorldRect;
+			if (rect) {
+				this.defectMaterial.uniforms['topRight'].value = new three.Vector2(rect.right, rect.top);
+				this.defectMaterial.uniforms['bottomLeft'].value = new three.Vector2(rect.left, rect.bottom);
+			}
+			this.defectMaterial.uniforms['pointSize'].value = this.dotSize * window.devicePixelRatio;
+			this.defectMaterial.uniforms['pointAlpha'].value = this.enableAlphaBlending ? 0.5 : 1.0;
+			this.defectMaterial.transparent = this.enableAlphaBlending;
+			this.defectMaterial.blending = this.enableAlphaBlending ? three.AdditiveBlending : three.NormalBlending;
+			this.defectMaterial.depthWrite = this.enableAlphaBlending ? false : true;
 		}
-		if (this.renderer) this.renderer.render(this.scene, this.camera);
+	}
+
+	render() {
+		this.updateAlpha();
+		// if (this.defectMaterial) {
+		// 	const rect = this._selectionWorldRect;
+		// 	if (rect) {
+		// 		this.defectMaterial.uniforms['topRight'].value = new three.Vector2(rect.right, rect.top);
+		// 		this.defectMaterial.uniforms['bottomLeft'].value = new three.Vector2(rect.left, rect.bottom);
+		// 	}
+		// 	this.defectMaterial.uniforms['pointSize'].value = this.dotSize * window.devicePixelRatio;
+		// 	this.defectMaterial.uniforms['pointAlpha'].value = this.enableAlphaBlending ? 0.5 : 1.0;
+		// }
+		if (this.renderer) {
+			// this.renderer.
+			this.renderer.render(this.scene, this.camera);
+		}
 		if (this.camera) this._zoom = this.camera.zoom;
-		if (this.renderer) console.log(this.renderer.info);
+		// if (this.renderer) console.log(this.renderer.info);
 	}
 
 	get selectRect(): ClientRect {
@@ -350,8 +381,8 @@ void main() {
 	_defects: three.Points;
 	defectMaterial: three.ShaderMaterial;
 	_selectionWorldRect: ClientRect;
-	// _selectRect: ClientRect = {width: 100, height: 40, top: 400, left: 500, bottom: 440, right: 600 };
-	// _selecting = true;
 	_resize: ResizeObserver;
 	_zoom = 0;
+	dotSize = 3;
+	enableAlphaBlending = false;
 }

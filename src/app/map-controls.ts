@@ -85,7 +85,7 @@ var OrbitControls = function (object, domElement) {
 	this.enableKeys = true;
 
 	// The four arrow keys
-	this.keys = { LEFT: 37, UP: 38, RIGHT: 39, BOTTOM: 40 };
+	this.keys = { LEFT: 37, UP: 38, RIGHT: 39, BOTTOM: 40, PLUS: 187, MINUS: 189, RESET_ZOOM: 220 };
 
 	// Mouse buttons
 	this.mouseButtons = { LEFT: MOUSE.ROTATE, MIDDLE: MOUSE.DOLLY, RIGHT: MOUSE.PAN };
@@ -451,6 +451,18 @@ var OrbitControls = function (object, domElement) {
 		};
 	}();
 
+	function resetZoom() {
+		if (scope.object.isOrthographicCamera) {
+			// scope.target.set(0, 0, 0);
+			// scope.target.x = 0;
+			scope.object.zoom = Math.max(scope.minZoom, Math.min(scope.maxZoom, 1));
+			scope.object.updateProjectionMatrix();
+			// scope.target.x = 0;
+			panOffset.set(-scope.target.x, -scope.target.y, 0);
+			zoomChanged = true;
+		}
+	}
+
 	function dollyIn(dollyScale) {
 		if (scope.object.isPerspectiveCamera) {
 			scale /= dollyScale;
@@ -613,42 +625,49 @@ var OrbitControls = function (object, domElement) {
 
 		// console.log( 'handleKeyDown' );
 
-		var needsUpdate = false;
+		var needsUpdate = true;
 
 		switch (event.keyCode) {
 
 			case scope.keys.UP:
 				pan(0, scope.keyPanSpeed);
-				needsUpdate = true;
 				break;
 
 			case scope.keys.BOTTOM:
 				pan(0, - scope.keyPanSpeed);
-				needsUpdate = true;
 				break;
 
 			case scope.keys.LEFT:
 				pan(scope.keyPanSpeed, 0);
-				needsUpdate = true;
 				break;
 
 			case scope.keys.RIGHT:
 				pan(- scope.keyPanSpeed, 0);
-				needsUpdate = true;
 				break;
 
-		}
+			case scope.keys.PLUS:
+				dollyOut(getZoomScale());
+				break;
+
+			case scope.keys.MINUS:
+				dollyIn(getZoomScale());
+				break;
+
+			case scope.keys.RESET_ZOOM:
+				resetZoom();
+				break;
+
+			default:
+				needsUpdate = false;
+				break;
+			}
 
 		if (needsUpdate) {
-
 			// prevent the browser from scrolling on cursor keys
 			event.preventDefault();
 
 			scope.update();
-
 		}
-
-
 	}
 
 	function handleTouchStartRotate(event) {
