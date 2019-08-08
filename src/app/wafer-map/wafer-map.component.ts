@@ -7,7 +7,9 @@ import { Sphere, Material } from 'three';
 const WAFER = 0x000000;
 const PERIMETER = 0x404040;
 const DIE = 0x181818;
-const DEFECTS = 0x20c0ff;
+const DEFECTS_NORMAL = new three.Color(0xf0f0f0);
+const DEFECTS_ACTIVE = new three.Color(0x65ffff);
+const DEFECTS_INACTIVE = new three.Color(0x656565);
 const BACKGND = 0x1e1e1e;
 // size of defect in logical pixels
 const DOT_SIZE = 3;
@@ -175,37 +177,53 @@ export class WaferMapComponent implements OnInit, OnDestroy {
 			uniforms: {
 				pointSize: { value: this.dotSize * window.devicePixelRatio },
 				pointAlpha: { value: this.enableAlphaBlending ? 0.5 : 1.0 },
-				defColor: {value: DEFECTS},
+				selectionTest: {value: false},
 				bottomLeft: {value: new three.Vector2(-100, -100)},
 				topRight: {value: new three.Vector2(100, 100)},
+				normalColor: {value: new three.Vector4(DEFECTS_NORMAL.r, DEFECTS_NORMAL.g, DEFECTS_NORMAL.b, 1)},
+				activeColor: {value: new three.Vector4(DEFECTS_ACTIVE.r, DEFECTS_ACTIVE.g, DEFECTS_ACTIVE.b, 1)},
+				inactiveColor: {value: new three.Vector4(DEFECTS_INACTIVE.r, DEFECTS_INACTIVE.g, DEFECTS_INACTIVE.b, 1)},
 			},
 			vertexShader: `
 varying float zcolor;
 uniform float pointSize;
 uniform vec2 topRight;
 uniform vec2 bottomLeft;
+uniform bool selectionTest;
 
 void main() {
 	gl_Position = projectionMatrix * modelViewMatrix * vec4(position.x, position.y, 0.0, 1.0);
 	gl_PointSize = pointSize;
-	// bounding selection box test:
-	if (position.x >= bottomLeft.x && position.x <= topRight.x && position.y >= bottomLeft.y && position.y <= topRight.y) {
-		zcolor = 1.0; // inside box
-	}
-	else {
-		zcolor = 0.0; // outside box
+	// zcolor = 0.0;
+	if (selectionTest) {
+		// bounding selection box test:
+		if (position.x >= bottomLeft.x && position.x <= topRight.x && position.y >= bottomLeft.y && position.y <= topRight.y) {
+			zcolor = 1.0; // inside box
+		}
+		else {
+			zcolor = 0.0; // outside box
+		}
 	}
 }`,
 			fragmentShader: `
 varying float zcolor;
 uniform float pointAlpha;
+uniform vec4 activeColor;
+uniform vec4 inactiveColor;
+uniform vec4 normalColor;
+uniform bool selectionTest;
 
 void main() {
-	if (zcolor > 0.0) {
-		gl_FragColor = vec4(0.2, 0.8, 1.0, 1.0) * pointAlpha;
+	if (selectionTest) {
+		if (zcolor > 0.0) {
+			gl_FragColor = activeColor * pointAlpha;
+		}
+		else {
+			gl_FragColor = inactiveColor * pointAlpha;
+		}
 	}
 	else {
-		gl_FragColor = vec4(0.6, 0.6, 0.6, 1.0) * pointAlpha;
+		gl_FragColor = normalColor * pointAlpha;
 	}
 }`
 		});
@@ -308,7 +326,11 @@ void main() {
 		controls.enableSelect = true;
 		controls.selecting = (finished: boolean) => { this.zone.run(() => {
 			this._selectionWorldRect = controls.getSelectRect(true);
-			if (finished) controls.clearSelectRect();
+			if (finished) {
+				const rect = controls.getSelectRect();
+				controls.zoomToRect(rect.left, rect.right, rect.top, rect.bottom);
+				controls.clearSelectRect();
+			}
 			this.render();
 		}); };
 		this.controls = controls;
@@ -331,7 +353,9 @@ void main() {
 	updateAlpha() {
 		if (this.defectMaterial) {
 			const rect = this._selectionWorldRect;
-			if (rect) {
+			const selection = rect && rect.width > 0 && rect.height > 0;
+			this.defectMaterial.uniforms['selectionTest'].value = selection ? true : false;
+			if (selection) {
 				this.defectMaterial.uniforms['topRight'].value = new three.Vector2(rect.right, rect.top);
 				this.defectMaterial.uniforms['bottomLeft'].value = new three.Vector2(rect.left, rect.bottom);
 			}
