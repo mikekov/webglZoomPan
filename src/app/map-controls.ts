@@ -26,7 +26,7 @@ const MOUSE_SELECT = 999;
 //    Zoom - middle mouse, or mousewheel / touch: two-finger spread or squish
 //    Pan - right mouse, or left mouse + ctrl/meta/shiftKey, or arrow keys / touch: two-finger move
 
-var OrbitControls = function (object, domElement) {
+const OrbitControls = function (object, domElement) {
 
 	this.object = object;
 
@@ -106,6 +106,25 @@ var OrbitControls = function (object, domElement) {
 	// public methods
 	//
 
+	// zoom in on a rectangle (specified in screen coordinates)
+	this.zoomToRect = function(left: number, right: number, top: number, bottom: number) {
+		const w = right - left;
+		const h = bottom - top;
+		if (w <= 0 || h <= 0) return;
+		const sx = scope.domElement.clientWidth / w;
+		const sy = scope.domElement.clientHeight / h;
+		const s = Math.min(sx, sy);
+		const zoom = Math.max(scope.minZoom, Math.min(scope.maxZoom, scope.object.zoom * s));
+		if (scope.object.zoom !== zoom) {
+			const newCenter = scope.screenToWorld((left + right) / 2, (top + bottom) / 2);
+			scope.object.zoom = zoom;
+			scope.object.updateProjectionMatrix();
+			const center = scope.screenToWorld(scope.domElement.clientWidth / 2, scope.domElement.clientHeight / 2);
+			panOffset.set(newCenter.x - center.x, newCenter.y - center.y, 0);
+			scope.update();
+		}
+	};
+
 	this.selecting = function(finished: boolean) {};
 
 	this.hasSelectRect = function(): boolean {
@@ -152,27 +171,20 @@ var OrbitControls = function (object, domElement) {
 	};
 
 	this.getPolarAngle = function () {
-
 		return spherical.phi;
-
 	};
 
 	this.getAzimuthalAngle = function () {
-
 		return spherical.theta;
-
 	};
 
 	this.saveState = function () {
-
 		scope.target0.copy(scope.target);
 		scope.position0.copy(scope.object.position);
 		scope.zoom0 = scope.object.zoom;
-
 	};
 
 	this.reset = function () {
-
 		scope.target.copy(scope.target0);
 		scope.object.position.copy(scope.position0);
 		scope.object.zoom = scope.zoom0;
@@ -183,12 +195,10 @@ var OrbitControls = function (object, domElement) {
 		scope.update();
 
 		state = STATE.NONE;
-
 	};
 
 	// this method is exposed, but perhaps it would be better if we can make it private...
 	this.update = function () {
-
 		var offset = new Vector3();
 
 		// so camera.up is the orbit axis
@@ -211,47 +221,33 @@ var OrbitControls = function (object, domElement) {
 			spherical.setFromVector3(offset);
 
 			if (scope.autoRotate && state === STATE.NONE) {
-
 				rotateLeft(getAutoRotationAngle());
-
 			}
 
 			if (scope.enableDamping) {
-
 				spherical.theta += sphericalDelta.theta * scope.dampingFactor;
 				spherical.phi += sphericalDelta.phi * scope.dampingFactor;
-
 			} else {
-
 				spherical.theta += sphericalDelta.theta;
 				spherical.phi += sphericalDelta.phi;
-
 			}
 
 			// restrict theta to be between desired limits
 			spherical.theta = Math.max(scope.minAzimuthAngle, Math.min(scope.maxAzimuthAngle, spherical.theta));
-
 			// restrict phi to be between desired limits
 			spherical.phi = Math.max(scope.minPolarAngle, Math.min(scope.maxPolarAngle, spherical.phi));
-
 			spherical.makeSafe();
 
-
 			spherical.radius *= scale;
-
 			// restrict radius to be between desired limits
 			spherical.radius = Math.max(scope.minDistance, Math.min(scope.maxDistance, spherical.radius));
 
 			// move target to panned location
 
 			if (scope.enableDamping === true) {
-
 				scope.target.addScaledVector(panOffset, scope.dampingFactor);
-
 			} else {
-// console.log('moveby', panOffset.x);
 				scope.target.add(panOffset);
-// console.log('pan', scope.target);
 			}
 
 			offset.setFromSpherical(spherical);
@@ -264,18 +260,14 @@ var OrbitControls = function (object, domElement) {
 			scope.object.lookAt(scope.target);
 
 			if (scope.enableDamping === true) {
-
 				sphericalDelta.theta *= (1 - scope.dampingFactor);
 				sphericalDelta.phi *= (1 - scope.dampingFactor);
 
 				panOffset.multiplyScalar(1 - scope.dampingFactor);
-
 			} else {
-
 				sphericalDelta.set(0, 0, 0);
 
 				panOffset.set(0, 0, 0);
-
 			}
 
 			scale = 1;
@@ -293,20 +285,16 @@ var OrbitControls = function (object, domElement) {
 				lastPosition.copy(scope.object.position);
 				lastQuaternion.copy(scope.object.quaternion);
 				zoomChanged = false;
-// console.log('tar', scope.target);
+
 				scope.clearSelectRect();
 				return true;
-
 			}
 
 			return false;
-
 		};
-
 	}();
 
 	this.dispose = function () {
-
 		scope.domElement.removeEventListener('contextmenu', onContextMenu, false);
 		scope.domElement.removeEventListener('mousedown', onMouseDown, false);
 		scope.domElement.removeEventListener('wheel', onMouseWheel, false);
@@ -321,7 +309,6 @@ var OrbitControls = function (object, domElement) {
 		window.removeEventListener('keydown', onKeyDown, false);
 
 		//scope.dispatchEvent( { type: 'dispose' } ); // should this be added here?
-
 	};
 
 	//
@@ -345,7 +332,6 @@ var OrbitControls = function (object, domElement) {
 		TOUCH_DOLLY_ROTATE: 6,
 		SELECT: 7
 	};
-
 
 	var state = STATE.NONE;
 
