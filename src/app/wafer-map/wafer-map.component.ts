@@ -11,32 +11,86 @@ const DEFECTS_NORMAL = new three.Color(0xf0f0f0);
 const DEFECTS_ACTIVE = new three.Color(0x65ffff);
 const DEFECTS_INACTIVE = new three.Color(0x656565);
 const BACKGND = 0x1e1e1e;
+const RED = new three.Color(0xff0000);
+const GREEN = new three.Color(0x00ff40);
 // size of defect in logical pixels
-const DOT_SIZE = 3;
+// const DOT_SIZE = 3;
 
-function createWaferShape(diameter: number): three.Group {
-	const N = 200;
-	const material = new three.MeshBasicMaterial({ color: WAFER });
-	const mesh = new three.Mesh(new three.CircleBufferGeometry(diameter / 2, N), material);
-	mesh.position.set(0, 0, 0);
+// create 3D object in plane z=0 representing wafer
+// diameter - in mm
+// notchSize - hight in mm
+// notchAngle - in degrees; 0 - down, 90 ? TODO
+function createWaferShape(diameter: number, notchSize: number, notchAngle: number): three.Group {
+	const vertices: number[] = [];
+	vertices.push(0, 0, 0);
+	let segments = 200;
+	const thetaStart = notchSize / diameter;
+	const thetaLength = 2 * (Math.PI - thetaStart);
+	const vertex = new three.Vector3(0, 0, 0);
+	const radius = diameter / 2;
+	const nx = radius - notchSize / 2.1;
+	const ny = notchSize / 6;
+	vertices.push(nx, ny, vertex.z);
+	for (let i = 0; i <= segments; ++i) {
+		const segment = thetaStart + i / segments * thetaLength;
+
+		vertex.x = radius * Math.cos(segment);
+		vertex.y = radius * Math.sin(segment);
+
+		vertices.push(vertex.x, vertex.y, vertex.z);
+	}
+	vertices.push(nx, -ny, vertex.z);
+	vertices.push(radius - notchSize / 2, 0, vertex.z);
+
+	segments = vertices.length / 3 - 1;
+	const indices: number[] = [];
+	for (let i = 1; i < segments; ++i) {
+		indices.push(i, i + 1, 0);
+	}
+	indices.push(segments, 1, 0);
+
+	const geo = new three.BufferGeometry();
+	geo.setIndex(indices);
+	geo.addAttribute('position', new three.Float32BufferAttribute(vertices, 3));
+
+	const material = new three.MeshBasicMaterial({color: WAFER});
+	const wafer = new three.Mesh(geo, material);
+	wafer.position.set(0, 0, 0);
 
 	const m = new three.LineBasicMaterial({linewidth: 2.0, color: PERIMETER});
-	const geometry = new three.CircleGeometry(diameter / 2, N);
-	geometry.computeBoundingSphere();
-	geometry.vertices.shift();
-	const m2 = new three.LineLoop(geometry, m);
-	m2.position.set(0, 0, 11);
+	const outline = new three.BufferGeometry();
+	// remove center point
+	for (let i = 0; i < 3; ++i) {	vertices.shift(); }
+	outline.addAttribute('position', new three.Float32BufferAttribute(vertices, 3));
+	const perimeter = new three.LineLoop(outline, m);
+	perimeter.position.set(0, 0, 1);
+
+	const pointer = new three.Shape();
+	const d = 3; // 3 mm
+	pointer.moveTo(0, 0);
+	pointer.lineTo(d, d);
+	pointer.lineTo(d, d / 2);
+	pointer.lineTo(d / 2, 0);
+	pointer.lineTo(d, -d / 2);
+	pointer.lineTo(d, -d);
+	pointer.closePath();
+	const notchPointer = new three.Mesh(new three.ShapeBufferGeometry(pointer), new three.MeshBasicMaterial({color: PERIMETER}));
+	notchPointer.position.set(radius + 0.5, 0, 1);
 
 	const group = new three.Group();
-	group.add(mesh);
-	group.add(m2);
+	group.add(wafer);
+	group.add(perimeter);
+	group.add(notchPointer);
+
+	group.rotateZ((notchAngle - 90) / 180 * Math.PI);
+
 	return group;
 }
 
 function generateDieMap(diameter: number, width: number, height: number, offset: [number, number], street: number): three.Group {
 	const coords = [];
 	const radius = diameter / 2;
-	const lines = [];
+	// const lines = [];
 
 	for (let y = -radius + offset[1]; y < radius; y += height) {
 		for (let x = -radius + offset[0]; x < radius; x += width) {
@@ -98,6 +152,13 @@ function generateDefects(diameter: number, count: number, offset): number[] {
 		pos.push(p[0] - 1.0);
 		pos.push(p[1] - 0.5);
 		// pos.push(-1 + i / count);
+		// simulate attribute
+		if (i % 1234 === 0) {
+			pos.push(1);
+		}
+		else {
+			pos.push(i % 123 === 0 ? 2 : 0);
+		}
 	}
 /*
 // defects at nm distances
@@ -119,6 +180,13 @@ pos.push(0);
 */
 
 	return pos;
+}
+
+export interface Rectangle {
+	x: number;
+	y: number;
+	width: number;
+	height: number;
 }
 
 @Component({
@@ -150,6 +218,11 @@ export class WaferMapComponent implements OnInit, OnDestroy {
 		this.render();
 	}
 
+	@Input()
+	set worldCanvas(rect: Rectangle) {
+		this._worldRect = rect;
+	}
+
 	constructor(el: ElementRef, private zone: NgZone) {
 		this.el = el.nativeElement;
 	}
@@ -164,11 +237,19 @@ export class WaferMapComponent implements OnInit, OnDestroy {
 		}
 		const def = generateDefects(diameter, this._defCount, this.offset);
 		const geo = new three.BufferGeometry();
-		geo.addAttribute('position', new three.Float32BufferAttribute(def, 2));
+		geo.addAttribute('position', new three.Float32BufferAttribute(def, 3));
 		geo.computeBoundingSphere = () => {
 			if (geo.boundingSphere === null) { geo.boundingSphere = new Sphere(); }
 			geo.boundingSphere.set(new three.Vector3(0, 0, 0), diameter / 2);
 		};
+
+		// defect attribute is used as index to this color palette
+		const colorPalette = {type: 'v4v', value: [
+			new three.Vector4(DEFECTS_INACTIVE.r, DEFECTS_INACTIVE.g, DEFECTS_INACTIVE.b, 1),
+			new three.Vector4(RED.r, RED.g, RED.b, 1),
+			new three.Vector4(GREEN.r, GREEN.g, GREEN.b, 1),
+			new three.Vector4(0, 0, 0, 1), // catch all black
+		]};
 
 		this.defectMaterial = new three.ShaderMaterial({
 			transparent: true,
@@ -183,17 +264,21 @@ export class WaferMapComponent implements OnInit, OnDestroy {
 				normalColor: {value: new three.Vector4(DEFECTS_NORMAL.r, DEFECTS_NORMAL.g, DEFECTS_NORMAL.b, 1)},
 				activeColor: {value: new three.Vector4(DEFECTS_ACTIVE.r, DEFECTS_ACTIVE.g, DEFECTS_ACTIVE.b, 1)},
 				inactiveColor: {value: new three.Vector4(DEFECTS_INACTIVE.r, DEFECTS_INACTIVE.g, DEFECTS_INACTIVE.b, 1)},
+				palette: colorPalette
 			},
 			vertexShader: `
 varying float zcolor;
+varying vec4 icolor;
 uniform float pointSize;
 uniform vec2 topRight;
 uniform vec2 bottomLeft;
 uniform bool selectionTest;
+uniform vec4 palette[${colorPalette.value.length}];
 
 void main() {
-	gl_Position = projectionMatrix * modelViewMatrix * vec4(position.x, position.y, 0.0, 1.0);
-	gl_PointSize = pointSize;
+	// position x/y is 2D location, wheras z is an attribute; passing z to gl_Position to bring some defects forward
+	gl_Position = projectionMatrix * modelViewMatrix * vec4(position.x, position.y, position.z / 10000.0, 1.0);
+	gl_PointSize = position.z > 0.0 ? 1.5 * pointSize : pointSize;
 	// zcolor = 0.0;
 	if (selectionTest) {
 		// bounding selection box test:
@@ -204,9 +289,13 @@ void main() {
 			zcolor = 0.0; // outside box
 		}
 	}
+	// z contains defect's attribute
+	float attrib = clamp(position.z, 0.0, ${colorPalette.value.length}.0);
+	icolor = palette[int(attrib)];
 }`,
 			fragmentShader: `
 varying float zcolor;
+varying vec4 icolor;
 uniform float pointAlpha;
 uniform vec4 activeColor;
 uniform vec4 inactiveColor;
@@ -214,6 +303,7 @@ uniform vec4 normalColor;
 uniform bool selectionTest;
 
 void main() {
+	// discard;
 	if (selectionTest) {
 		if (zcolor > 0.0) {
 			gl_FragColor = activeColor * pointAlpha;
@@ -223,7 +313,7 @@ void main() {
 		}
 	}
 	else {
-		gl_FragColor = normalColor * pointAlpha;
+		gl_FragColor = icolor * pointAlpha;
 	}
 }`
 		});
@@ -293,7 +383,7 @@ void main() {
 		this.scene = new three.Scene();
 		this.scene.background = new three.Color(BACKGND);
 
-		const circle = createWaferShape(300);
+		const circle = createWaferShape(300, 3, 0);
 		circle.position.set(0, 0, 100);
 		this.scene.add(circle);
 
@@ -409,4 +499,5 @@ void main() {
 	_zoom = 0;
 	dotSize = 3;
 	enableAlphaBlending = false;
+	_worldRect: Rectangle | undefined;
 }
