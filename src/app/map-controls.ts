@@ -362,7 +362,7 @@ const OrbitControls = function (object, domElement) {
 	}
 
 	function getZoomScale() {
-		return Math.pow(0.95, scope.zoomSpeed);
+		return Math.pow(0.840896415253714543, scope.zoomSpeed);
 	}
 
 	function rotateLeft(angle) {
