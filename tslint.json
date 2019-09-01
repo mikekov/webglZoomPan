@@ -36,15 +36,16 @@
     ],
     "member-access": false,
     "member-ordering": [
-      true,
-      {
-        "order": [
-          "static-method",
-          "instance-method",
-          "static-field",
-          "instance-field"
-        ]
-      }
+		true,
+		"functions-before-variables"
+      // {
+      //   "order": [
+      //     "static-method",
+      //     "instance-method",
+      //     "static-field",
+      //     "instance-field"
+      //   ]
+      // }
     ],
     "no-arg": true,
     "no-bitwise": true,

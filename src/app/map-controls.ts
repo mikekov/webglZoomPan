@@ -102,6 +102,8 @@ const OrbitControls = function (object, domElement) {
 	this.enableSelect = false;
 	this._clickPoint = new Vector2();
 	this._upPoint = new Vector2();
+
+	this.limitOffset = function() {};
 	//
 	// public methods
 	//
@@ -258,6 +260,7 @@ const OrbitControls = function (object, domElement) {
 			position.copy(scope.target).add(offset);
 
 			scope.object.lookAt(scope.target);
+			scope.limitOffset(scope.target);
 
 			if (scope.enableDamping === true) {
 				sphericalDelta.theta *= (1 - scope.dampingFactor);
@@ -436,6 +439,12 @@ const OrbitControls = function (object, domElement) {
 			}
 		};
 	}();
+
+	this.panWorldCoord = function(dx: number, dy: number) {
+		panOffset.x += dx;
+		panOffset.y += dy;
+		scope.update();
+	};
 
 	function resetZoom() {
 		if (scope.object.isOrthographicCamera) {

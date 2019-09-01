@@ -24,4 +24,5 @@ export class AppComponent {
 	density = false;
 	dotSize = 3;
 	defCount = 100;
+	worldCanvas = {x: -150, y: -150, width: 300, height: 300};
 }

@@ -1,0 +1,183 @@
+$dark--background: #202020;
+$dark--active-gray:	mix(#fff, $dark--background, $weight:12%);
+
+$color-background: $dark--background;
+$color-scrollbar-rail: mix(#fff, $dark--background, $weight:5%);
+$color-scrollbar-active-rail: $dark--active-gray;
+$color-scrollbar-thumb: mix(#fff, $dark--background, $weight:21%);
+$color-scrollbar-active-thumb: mix(#fff, $dark--background, $weight:31%);
+
+$size: 15px;
+$thumb: 13px;
+$thumb-min-size: 28px;
+$thumb-radius: 0px;
+$arrow-size: 10px;
+
+:host {
+	min-height: $size;
+	min-width: $size;
+	display: grid;
+	grid-template-areas:
+		". t ."
+		"l x r"
+		". b .";
+	grid-template-columns: auto 1fr auto;
+	grid-template-rows: auto 1fr auto;
+			// cursor: default;
+}
+
+.cs-single-button-vert {
+	width: 0px;
+	// height: 10px;
+	// @include themify {
+		border-left: $size/2 solid transparent;
+		border-right: $size/2 solid transparent;
+	// }
+}
+
+.cs-single-button-horz {
+	// width: 10px;
+	height: 0px;
+	// @include themify {
+		border-top: $size/2 solid transparent;
+		border-bottom: $size/2 solid transparent;
+	// }
+}
+
+.track {
+	grid-area: x;
+	// @include themify {
+		background-color: $color-scrollbar-rail;
+		&.vert {
+			width: $size;
+			border-top: 2px solid $color-background;
+			border-bottom: 2px solid $color-background;
+		}
+		&.horz {
+			height: $size;
+			border-left: 2px solid $color-background;
+			border-right: 2px solid $color-background;
+		}
+	// }
+	position: relative;
+}
+
+.thumb {
+	position: absolute;
+	&.vert {
+		left: 2px;
+		width: $size - 4;
+	}
+	&.horz {
+		top: 2px;
+		height: $size - 4;
+	}
+	// @include themify {
+		background-color: $color-scrollbar-thumb;
+	// border-left: 2px solid $scrollbar-rail-color;
+	// border-right: 2px solid $scrollbar-rail-color;
+	// &.vert {
+	// 	// min-height: $thumb-min-size;
+	// }
+	// &.horz {
+	// 	min-width: $thumb-min-size;
+	// }
+		&:hover, &.active {
+			background-color: $color-scrollbar-active-thumb;
+		}
+	// }
+}
+
+.page {
+	position: absolute;
+	&.vert {
+		left: 0;
+		width: $size;
+	}
+	&.horz {
+		top: 0;
+		height: $size;
+	}
+}
+
+.pgup {
+	@extend .page;
+	&.vert {
+		top: 0;
+	}
+	&.horz {
+		left: 0;
+	}
+}
+
+.pgdown {
+	@extend .page;
+	&.vert {
+		bottom: 0;
+	}
+	&.horz {
+		right: 0;
+	}
+}
+
+.inc {
+	&.vert {
+		grid-area: t;
+		@extend .cs-single-button-vert;
+		border-bottom: $arrow-size solid $color-scrollbar-thumb;
+	}
+	&.horz {
+		grid-area: r;
+		@extend .cs-single-button-horz;
+		border-left: $arrow-size solid $color-scrollbar-thumb;
+	}
+	// @include themify {
+		&:hover {
+			&.vert {
+				border-bottom-color: $color-scrollbar-active-thumb;
+			}
+			&.horz {
+				border-left-color: $color-scrollbar-active-thumb;
+			}
+		}
+		&.disabled{
+			&.vert {
+				border-bottom-color: $color-scrollbar-rail;
+			}
+			&.horz {
+				border-left-color: $color-scrollbar-rail;
+			}
+		}
+	// }
+}
+
+.dec {
+	&.vert {
+		grid-area: b;
+		@extend .cs-single-button-vert;
+		border-top: $arrow-size solid $color-scrollbar-thumb;
+	}
+	&.horz {
+		grid-area: l;
+		@extend .cs-single-button-horz;
+		border-right: $arrow-size solid $color-scrollbar-thumb;
+	}
+	// @include themify {
+		&:hover {
+			&.vert {
+				border-top-color: $color-scrollbar-active-thumb;
+			}
+			&.horz {
+				border-right-color: $color-scrollbar-active-thumb;
+			}
+		}
+		&.disabled{
+			&.vert {
+				border-top-color: $color-scrollbar-rail;
+			}
+			&.horz {
+				border-right-color: $color-scrollbar-rail;
+			}
+		}
+	// }
+}

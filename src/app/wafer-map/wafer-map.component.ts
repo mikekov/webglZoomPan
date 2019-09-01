@@ -1,7 +1,7 @@
-import { Component, OnInit, ElementRef, Input, NgZone, OnDestroy, ViewEncapsulation } from '@angular/core';
+import { Component, OnInit, ElementRef, Input, NgZone, OnDestroy, ViewEncapsulation, ViewChild } from '@angular/core';
 import * as three from 'three';
 import { MapControls } from '../map-controls';
-import { Material } from 'three';
+import { Material, Vector3 } from 'three';
 import { RectangleShape, createRectangles } from './create-rectangles';
 import { createWaferShape } from './create-wafer-shape';
 import { createPoints } from './create-points';
@@ -181,9 +181,11 @@ export class WaferMapComponent implements OnInit, OnDestroy {
 			.forEach(obj => obj.dispose());
 	}
 
+	@ViewChild('canvasArea', undefined) _canvasArea: ElementRef;
 	private get viewportSize(): {w: number, h: number} {
-		const w = this.el.clientWidth;
-		const h = this.el.clientHeight;
+		if (!this._canvasArea) return {w: 0, h: 0};
+		const w = this._canvasArea.nativeElement.clientWidth;
+		const h = this._canvasArea.nativeElement.clientHeight;
 		return {w, h};
 	}
 
@@ -250,7 +252,7 @@ export class WaferMapComponent implements OnInit, OnDestroy {
 
 		const controls = new MapControls(this.camera, this.renderer.domElement);
 		controls.enableRotate = false;
-		controls.minZoom = 0.1;
+		controls.minZoom = 1;
 		controls.maxZoom = 1e8;
 		controls.zoomSpeed = 4;
 		controls.screenSpacePanning = true;
@@ -267,6 +269,7 @@ export class WaferMapComponent implements OnInit, OnDestroy {
 			}
 			this.render();
 		}); };
+		controls.limitOffset = (target: three.Vector3) => this.limitOffset(target);
 		this.controls = controls;
 
 		if (window['ResizeObserver']) {
@@ -282,6 +285,58 @@ export class WaferMapComponent implements OnInit, OnDestroy {
 			this._resize.observe(this.el);
 		}
 		this.render();
+	}
+
+	private limitOffset(target: three.Vector3) {
+		const camera = this.camera;
+		if (!camera) return;
+
+		const area = this.workArea;
+		const x = target.x;
+		const y = target.y;
+		const z = camera.zoom;
+
+		const aw = area.right - area.left;
+		const r = camera.right / z;
+		const l = camera.left / z;
+		const vw = r - l;
+		let dx = x;
+		if (vw < aw) {
+			if (l + x < area.left) {
+				dx += area.left - (l + x);
+			}
+			else if (r + x > area.right) {
+				dx -= r + x - area.right;
+			}
+		}
+		else {
+			dx = 0;
+		}
+
+		const ah = area.top - area.bottom;
+		const t = camera.top / z;
+		const b = camera.bottom / z;
+		const vh = t - b;
+		let dy = y;
+		if (vh < ah) {
+			if (b + y < area.bottom) {
+				dy += area.bottom - (b + y);
+			}
+			else if (t + y > area.top) {
+				dy -= t + y - area.top;
+			}
+		}
+		else {
+			dy = 0;
+		}
+
+		if (dx !== x || dy !== y) {
+			target.x = dx;
+			target.y = dy;
+			target.z = 0;
+			camera.position.x = dx;
+			camera.position.y = dy;
+		}
 	}
 
 	updateAlpha() {
@@ -326,6 +381,47 @@ export class WaferMapComponent implements OnInit, OnDestroy {
 
 	get selecting(): boolean {
 		return this.controls && this.controls.enableSelect && this.controls.hasSelectRect();
+	}
+
+	getViewportArea() {
+		const camera = this.camera;
+		if (!camera) return {width: 0, height: 0};
+		return {
+			width: (camera.right - camera.left) / camera.zoom,
+			height: (camera.top - camera.bottom) / camera.zoom
+		};
+	}
+
+	getViewportPosition() {
+		const camera = this.camera;
+		if (!camera) return {x: 0, y: 0};
+		// const m = camera.matrixWorld.elements;
+		const pos = camera.position;
+		return {
+			x: (camera.left + camera.right) / 2 + pos.x, // m[12],
+			y: (camera.top + camera.bottom) / 2 + pos.y // m[13]
+		};
+	}
+
+	get workArea(): {left: number, right: number, top: number, bottom: number} {
+		const w = this._worldRect;
+		return w && {left: w.x, right: w.x + w.width, bottom: w.y, top: w.y + w.height} || {left: 0, right: 0, top: 0, bottom: 0};
+	}
+
+	scrollTo(xy: string, pos: number) {
+		if (!this.camera) return;
+
+		const vp = this.getViewportPosition();
+
+		switch (xy) {
+			case 'x':
+				this.controls.panWorldCoord(pos - vp.x, 0);
+				break;
+			case 'y':
+				this.controls.panWorldCoord(0, pos - vp.y);
+				break;
+		}
+		this.controls.update();
 	}
 
 	controls: MapControls;
