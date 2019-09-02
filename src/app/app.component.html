@@ -1,5 +1,5 @@
 <main class="main">
-	<mk-wafer-map class="wafer" [defectCount]="defCount" [pointSize]="dotSize" [alphaBlending]="density" [worldCanvas]="worldCanvas"></mk-wafer-map>
+	<mk-wafer-map class="wafer" [defectCount]="defCount" [pointSize]="dotSize" [worldCanvas]="worldCanvas"></mk-wafer-map>
 	<div class="params">
 		<p>Defects:</p><p>{{defCount}}</p>
 		<input #def type="range" min="1" max="7" (input)="defects(def.value)">

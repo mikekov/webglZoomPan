@@ -1,10 +1,1 @@
-<main class="viewer-component">
-	<div #canvasArea class="dummy"></div>
-	<div *ngIf="selecting" class="select-rectangle" [style.left.px]="selectRect.left" [style.width.px]="selectRect.width" [style.top.px]="selectRect.top" [style.height.px]="selectRect.height"></div>
-
-	<p style="z-index: 10; position: absolute; top: 0; left: 0;">{{_zoom}}</p>
-
-	<mk-scrollbar class="vert" orientation="vert" [lineSize]="getViewportArea().height / 10" [pageSize]="getViewportArea().height" [range]="[workArea.bottom, workArea.top]" [position]="getViewportPosition().y" (scrollTo)="scrollTo('y', $event)"></mk-scrollbar>
-
-	<mk-scrollbar class="horz" orientation="horz" [lineSize]="getViewportArea().width / 10" [pageSize]="getViewportArea().width" [range]="[workArea.left, workArea.right]" [position]="getViewportPosition().x" (scrollTo)="scrollTo('x', $event)"></mk-scrollbar>
-</main>
+<mk-two-d-viewer [options]="_options" [workAreaRect]="_worldRect" [objects]="_objects"></mk-two-d-viewer>
