@@ -1,6 +1,6 @@
 import * as three from 'three';
-import { RectangleShape, createRectangles } from './wafer-map/create-rectangles';
 import { interpolate_or_clip, turbo_colormap_data } from './color-palettes';
+import { Die } from './wafer-map/wafer-map.component';
 
 // colors
 export const WAFER = new three.Color(0x000000);
@@ -14,11 +14,11 @@ export const BACKGND = 0x1e1e1e;
 export const RED = new three.Color(0xff0000);
 export const GREEN = new three.Color(0x00ff40);
 
-export function generateDieMap(diameter: number, width: number, height: number, offset: [number, number], street: number): three.Group {
+export function generateDieMap(diameter: number, width: number, height: number, offset: [number, number], street: number, colors: boolean): Die[] {
 	const radius = diameter / 2;
 	const w = width - 2 * street;
 	const h = height - 2 * street;
-	const dies: RectangleShape[] = [];
+	const dies: Die[] = [];
 	const rotation = new three.Matrix3();
 	rotation.rotate(-Math.PI / 4);
 
@@ -34,21 +34,21 @@ export function generateDieMap(diameter: number, width: number, height: number, 
 			const r = v.applyMatrix3(rotation);
 			const grad = (1 + r.x / radius) / 2;
 			// const color = interpolateColor(measurements_colormap_data, grad);
-			const color = interpolate_or_clip(turbo_colormap_data, grad);
-			const off = i++ % 2 !== 0;
+			const color = colors ? interpolate_or_clip(turbo_colormap_data, grad) : DIE;
+			const off = i++ % 2 !== 0 && colors;
 			dies.push({
 				x: x + street,
 				y: y + street,
 				width: w,
 				height: h,
-				fill: off ? DIE : new three.Color(color[0], color[1], color[2]),
-				line: WAFER,
-				crosshatch: off,
-				hatch: HATCH
+				fill: off || !colors ? DIE : new three.Color(color[0], color[1], color[2]),
+				// line: WAFER,
+				// crosshatch: off,
+				hatch: off ? HATCH : undefined
 			});
 		}
 	}
-	return createRectangles(dies);
+	return dies;
 }
 
 export function generateDefects(diameter: number, count: number, offset): number[] {

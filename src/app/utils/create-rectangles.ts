@@ -71,7 +71,7 @@ function createCrosshatchMaterial(background: THREE.Color, lines: THREE.Color, s
 	const rotation = new THREE.Matrix3();
 	rotation.rotate(Math.PI / 4);
 
-	const diffColor = lines.sub(background);
+	const diffColor = lines.clone().sub(background);
 
 	const crosshatch = new THREE.ShaderMaterial({
 		vertexShader: `
@@ -85,6 +85,8 @@ function createCrosshatchMaterial(background: THREE.Color, lines: THREE.Color, s
 		uniform vec3 background;
 		uniform vec3 diffColor;
 		void main() {
+			// float dist = gl_FragCoord.x * gl_FragCoord.y;
+			// if (dist > 288.0 * 288.0) discard;
 			vec2 pos = (rotate * vec3(gl_FragCoord.x, gl_FragCoord.y, 1.0)).xy;
 			float dx = mod(pos.x, density) - density / 2.0;
 			float dy = mod(pos.y, density) - density / 2.0;

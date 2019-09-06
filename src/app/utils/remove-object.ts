@@ -24,6 +24,12 @@ export function disposeObject3D(obj: THREE.Object3D) {
 	}
 }
 
+export function disposeObjects(array: THREE.Object3D[]) {
+	if (!array || !array.forEach) return;
+
+	array.forEach(obj => disposeObject3D(obj));
+}
+
 export function removeObject(array: THREE.Object3D[], object: THREE.Object3D) {
 	removeElement(array, object);
 	disposeObject3D(object);

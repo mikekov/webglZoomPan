@@ -1,4 +1,4 @@
-import { Component, OnInit, ViewEncapsulation, Input, ElementRef, NgZone, ViewChild, Output, EventEmitter } from '@angular/core';
+import { Component, OnInit, ViewEncapsulation, Input, ElementRef, NgZone, ViewChild, Output, EventEmitter, AfterViewInit, OnDestroy } from '@angular/core';
 import * as THREE from 'three';
 import ResizeObserver from 'resize-observer-polyfill';
 import { MapControls } from '../map-controls';
@@ -28,10 +28,10 @@ export interface Rectangle {
 	styleUrls: ['./two-d-viewer.component.scss'],
 	encapsulation: ViewEncapsulation.None
 })
-export class TwoDViewerComponent implements OnInit {
+export class TwoDViewerComponent implements OnInit, OnDestroy, AfterViewInit {
 
 	// dimensions of the working area in world coordinates; unitless
-	// Y axis points up
+	// Y axis is pointing up
 	@Input()
 	set workAreaRect(rect: Rectangle) {
 		this._worldRect = rect;
@@ -58,8 +58,7 @@ export class TwoDViewerComponent implements OnInit {
 	// selection rectangle in world coordinates fires after user lasso-selects
 	@Output() selectionRectangle = new EventEmitter<Rectangle>();
 
-	constructor(el: ElementRef, private zone: NgZone) {
-		this._el = el.nativeElement;
+	constructor(private zone: NgZone) {
 	}
 
 	// call this function before rendering scene
@@ -71,8 +70,8 @@ export class TwoDViewerComponent implements OnInit {
 	}
 
 	ngOnDestroy() {
-		if (this._resize) {
-			this._resize.unobserve(this._el);
+		if (this._resize && this._root) {
+			this._resize.unobserve(this._root.nativeElement);
 		}
 		clearScene(this._scene, true);
 		// dispose of resources
@@ -84,7 +83,7 @@ export class TwoDViewerComponent implements OnInit {
 	// size of canvas in pixels
 	@ViewChild('canvasArea', undefined) _canvasArea: ElementRef;
 	private get viewportSize(): { w: number, h: number } {
-		if (!this._canvasArea) return { w: 0, h: 0 };
+		if (!this._canvasArea || !this._canvasArea.nativeElement) return { w: 0, h: 0 };
 		const w = this._canvasArea.nativeElement.clientWidth;
 		const h = this._canvasArea.nativeElement.clientHeight;
 		return { w, h };
@@ -145,15 +144,9 @@ export class TwoDViewerComponent implements OnInit {
 		this._renderer = new THREE.WebGLRenderer({antialias: false, alpha: false});
 		this._renderer.setPixelRatio(window.devicePixelRatio);
 
-		const resize = () => {
-			this.updateCameraSize();
-			const size = this.viewportSize;
-			this._renderer.setSize(size.w, size.h, true);
-			this.render();
-		};
-		resize();
-
-		this._el.appendChild(this._renderer.domElement);
+		this._renderer.domElement.className = "render-surface";
+		this._root.nativeElement.appendChild(this._renderer.domElement);
+		this.resize();
 
 		const controls = new MapControls(this._camera, this._renderer.domElement);
 		controls.enableRotate = false;
@@ -185,11 +178,20 @@ export class TwoDViewerComponent implements OnInit {
 		this._controls = controls;
 		this.updateCurrentTool(this._tool);
 
-		this._resize = new ResizeObserver(e => {
-			this.zone.run(() => { resize(); });
-		});
-		this._resize.observe(this._el);
+		this.render();
+	}
 
+	ngAfterViewInit() {
+		this._resize = new ResizeObserver(e => {
+			this.zone.run(() => { this.resize(); });
+		});
+		this._resize.observe(this._root.nativeElement);
+	}
+
+	private resize() {
+		this.updateCameraSize();
+		const size = this.viewportSize;
+		this._renderer.setSize(size.w, size.h, true);
 		this.render();
 	}
 
@@ -223,7 +225,7 @@ export class TwoDViewerComponent implements OnInit {
 		// remove objects, do not dispose
 		clearScene(scene, false);
 
-		if (objects) objects.forEach(ob => scene.add(ob));
+		if (objects) objects.forEach(obj => { if (obj) scene.add(obj); });
 
 		this.render();
 	}
@@ -319,11 +321,10 @@ export class TwoDViewerComponent implements OnInit {
 	getViewportPosition() {
 		const camera = this._camera;
 		if (!camera) return { x: 0, y: 0 };
-		// const m = camera.matrixWorld.elements;
 		const pos = camera.position;
 		return {
-			x: (camera.left + camera.right) / 2 + pos.x, // m[12],
-			y: (camera.top + camera.bottom) / 2 + pos.y // m[13]
+			x: (camera.left + camera.right) / 2 + pos.x,
+			y: (camera.top + camera.bottom) / 2 + pos.y
 		};
 	}
 
@@ -362,12 +363,12 @@ export class TwoDViewerComponent implements OnInit {
 		}
 	}
 
+	@ViewChild('main', undefined) _root;
 	_controls: MapControls;
 	_camera: THREE.OrthographicCamera;
 	_scene = new THREE.Scene();
 	_objects: THREE.Object3D[];
 	_renderer: THREE.WebGLRenderer;
-	_el: HTMLElement;
 	_selectionWorldRect: ClientRect;
 	_resize: ResizeObserver;
 	_zoom = 0;

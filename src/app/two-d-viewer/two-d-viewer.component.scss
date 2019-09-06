@@ -14,7 +14,7 @@ main.viewer-component {
 	grid-area: canvas;
 }
 
-canvas {
+canvas.render-surface {
 	position: absolute;
 	top: 0;
 	left: 0;

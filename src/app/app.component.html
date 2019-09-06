@@ -1,10 +1,11 @@
 <main class="main">
-	<mk-wafer-map class="wafer" [defectCount]="defCount" [pointSize]="dotSize" [worldCanvas]="worldCanvas"></mk-wafer-map>
+	<mk-wafer-map class="wafer" [wafer]="wafer" [dieMap]="dieMap" [pointOptions]="pointOptions" [points]="defects" [worldCanvas]="worldCanvas"></mk-wafer-map>
 	<div class="params">
 		<p>Defects:</p><p>{{defCount}}</p>
-		<input #def type="range" min="1" max="7" (input)="defects(def.value)">
+		<input #def type="range" min="1" max="7" [value]="defSlider()" (input)="genDefects(def.value)">
 		<p>Dot size: {{dotSize}}</p>
-		<input #size type="range" min="1" max="16" (input)="setDotSize(+size.value)">
+		<input #size type="range" min="1" max="16" [value]="dotSlider()" (input)="setDotSize(+size.value)">
 		<!-- <div style="margin-top: 1em"><input id="dens" #dens type="checkbox" (change)="enableDensity(dens.checked)"><label for="dens">Show density</label></div> -->
+		<div style="margin-top: 1em"><input id="dens" #dens type="checkbox" [checked]="colormap" (change)="enableColors(dens.checked)"><label for="dens">Show color map</label></div>
 	</div>
 </main>
