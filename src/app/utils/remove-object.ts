@@ -1,4 +1,6 @@
-export function disposeObject3D(obj: THREE.Object3D) {
+import * as THREE from 'three';
+
+export function disposeObject3D(obj: THREE.Object3D | null | undefined) {
 	if (!obj) return;
 
 	const children = obj.children;
@@ -6,8 +8,8 @@ export function disposeObject3D(obj: THREE.Object3D) {
 		children.forEach(child => disposeObject3D(child));
 	}
 
-	const geometry = obj['geometry'];
-	const material = obj['material'];
+	const geometry = (obj as any)['geometry'];
+	const material = (obj as any)['material'];
 
 	if (geometry) {
 		geometry.dispose();
@@ -24,7 +26,7 @@ export function disposeObject3D(obj: THREE.Object3D) {
 	}
 }
 
-export function disposeObjects(array: THREE.Object3D[]) {
+export function disposeObjects(array: (THREE.Object3D | undefined | null)[]) {
 	if (!array || !array.forEach) return;
 
 	array.forEach(obj => disposeObject3D(obj));

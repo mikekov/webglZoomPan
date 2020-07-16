@@ -143,8 +143,8 @@ export class ScrollbarComponent implements OnInit {
 		horz: false,
 		vert: true
 	};
-	@ViewChild('track', undefined) trackElement;
-	@ViewChild('thumb', undefined) thumbElement;
+	@ViewChild('track') trackElement: ElementRef | undefined;
+	@ViewChild('thumb') thumbElement: ElementRef | undefined;
 	_position = 0;
 	_maximum = 0;
 	_minimum = 0;

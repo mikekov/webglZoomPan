@@ -1,5 +1,6 @@
 import { BrowserModule } from '@angular/platform-browser';
 import { NgModule } from '@angular/core';
+import { HttpClientModule } from '@angular/common/http';
 
 import { AppComponent } from './app.component';
 import { WaferMapComponent } from './wafer-map/wafer-map.component';
@@ -16,7 +17,7 @@ import { TwoDViewerComponent } from './two-d-viewer/two-d-viewer.component';
 		TwoDViewerComponent
 	],
 	imports: [
-		BrowserModule
+		BrowserModule, HttpClientModule
 	],
 	providers: [],
 	bootstrap: [AppComponent]

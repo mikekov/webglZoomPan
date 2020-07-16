@@ -3,12 +3,12 @@
 	<ng-container *ngIf="_vert">
 		<div class="pgup" [ngClass]="_orientationClass" (click)="_scroll(2)" [style.bottom.%]="_thumbLocation()"></div>
 		<div class="pgdown" [ngClass]="_orientationClass" (click)="_scroll(-2)" [style.top.%]="100 - _thumbLocation()"></div>
-		<div #thumb class="thumb" mkSplitter grow='top' [component]="self()" [changeCursor]="false" (resizing)="_thumbMoved($event)" (resizingAction)="_thumbActive = $event" [currentSize]="_currentPos" [ngClass]="_orientationClass" [class.active]="_thumbActive" [style.bottom.%]="_thumbLocation()" [style.height.%]="_thumbSize()"></div>
+		<div #thumb class="thumb" mkSplitter grow='top' [component]="self()" [changeCursor]="false" (resizing)="_thumbMoved($event)" (resizingAction)="_thumbActive = $event" [ngClass]="_orientationClass" [class.active]="_thumbActive" [style.bottom.%]="_thumbLocation()" [style.height.%]="_thumbSize()"></div>
 	</ng-container>
 	<ng-container *ngIf="!_vert">
 		<div class="pgup" [ngClass]="_orientationClass" (click)="_scroll(-2)" [style.right.%]="100 - _thumbLocation()"></div>
 		<div class="pgdown" [ngClass]="_orientationClass" (click)="_scroll(2)" [style.left.%]="_thumbLocation()"></div>
-		<div #thumb class="thumb" mkSplitter grow='right' [component]="self()" [changeCursor]="false" (resizing)="_thumbMoved($event)" (resizingAction)="_thumbActive = $event" [currentSize]="_currentPos" [step]="0" [ngClass]="_orientationClass" [class.active]="_thumbActive" [style.left.%]="_thumbLocation()" [style.width.%]="_thumbSize()"></div>
+		<div #thumb class="thumb" mkSplitter grow='right' [component]="self()" [changeCursor]="false" (resizing)="_thumbMoved($event)" (resizingAction)="_thumbActive = $event" [step]="0" [ngClass]="_orientationClass" [class.active]="_thumbActive" [style.left.%]="_thumbLocation()" [style.width.%]="_thumbSize()"></div>
 	</ng-container>
 </div>
 <div class="inc" [ngClass]="_orientationClass" (click)="_scroll(1)" [class.disabled]="_thumbSize()==0"></div>

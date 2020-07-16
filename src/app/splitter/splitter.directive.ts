@@ -1,7 +1,10 @@
-import * as _ from 'lodash';
 import { Directive, Input, Output, HostListener, ElementRef, EventEmitter, ApplicationRef } from '@angular/core';
 
 // ktSplitter directive is to be attached to an element that users can move to adjust size of an adjacent element
+
+function isFunction(f: any): boolean {
+	return f instanceof Function;
+}
 
 @Directive({
 	selector: '[mkSplitter]'
@@ -13,7 +16,7 @@ export class SplitterDirective {
 
 	// resizing direction: which way to drag slider to make connected element grow
 	@Input()
-	grow: 'left' | 'right' | 'top' | 'bottom';
+	grow: 'left' | 'right' | 'top' | 'bottom' | undefined;
 
 	// minimum size to report
 	@Input() minSize = 0;
@@ -25,7 +28,7 @@ export class SplitterDirective {
 	@Input() step = 1;
 
 	// component to resize; splitter will call resizing() & resizingAction() on this component
-	@Input() component;
+	@Input() component: { getSize?: () => number; resizingAction?: (arg0: boolean) => void; resizing?: (arg0: number) => void; } | undefined;
 
 	@Input() canResize = true;
 	@Input() changeCursor = true;
@@ -46,16 +49,16 @@ export class SplitterDirective {
 		this.point = {x: ev.x, y: ev.y};
 		this.resizingStartStop(true);
 		this.storeSize = this.currentSize;
-		if (this.component && _.isFunction(this.component.getSize)) {
-			this.storeSize = this.component.getSize();
+		if (this.component && isFunction(this.component.getSize)) {
+			this.storeSize = this.component.getSize!();
 		}
 	}
 
 	private resizingStartStop(start: boolean) {
 		if (!this.canResize) return;
 		this.resizingAction.next(start);
-		if (this.component && _.isFunction(this.component.resizingAction)) {
-				this.component.resizingAction(start);
+		if (this.component && isFunction(this.component.resizingAction)) {
+				this.component.resizingAction!(start);
 		}
 	}
 
@@ -68,12 +71,14 @@ export class SplitterDirective {
 	// leave mouse events on a body to be able to change cursor globally
 	private preventGlobalMouseEvents() {
 		const main = this.getMainElement();
-		(main || document.body).style['pointer-events'] = 'none';
+		// (main || document.body).style['pointer-events'] = 'none';
+		(main || document.body).style.pointerEvents = 'none';
 	}
 
 	private restoreGlobalMouseEvents() {
 		const main = this.getMainElement();
-		(main || document.body).style['pointer-events'] = 'auto';
+		// (main || document.body).style['pointer-events'] = 'auto';
+		(main || document.body).style.pointerEvents = 'auto';
 	}
 
 	private setCallbacks() {
@@ -104,8 +109,8 @@ export class SplitterDirective {
 				if (rem > step / 2) { size += step; }
 				const final = Math.max(+this.minSize, size);
 				this.resizing.next(final);
-				if (this.component && _.isFunction(this.component.resizing)) {
-					this.component.resizing(final);
+				if (this.component && isFunction(this.component.resizing)) {
+					this.component.resizing!(final);
 				}
 				}
 				else {
@@ -136,16 +141,16 @@ export class SplitterDirective {
 		e.preventDefault();
 		e.stopPropagation();
 		this.saveCursor = document.body.style.cursor;
-		if (this.changeCursor) {
+		if (this.changeCursor && this.grow) {
 			document.body.style.cursor = /left|right/.test(this.grow) ? 'col-resize' : 'row-resize';
 		}
 	}
 
 	private drag = false;
-	private point = null;
-	private storeSize: number;
-	private saveCursor: string;
-	private mousemoveListener;
-	private mouseupListener;
-	private rootRef: ElementRef;
+	private point: {x: number, y: number} | null = null;
+	private storeSize = 0;
+	private saveCursor = "";
+	private mousemoveListener: any;
+	private mouseupListener: any;
+	private rootRef: ElementRef | undefined;
 }

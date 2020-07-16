@@ -8,6 +8,7 @@ main.viewer-component {
 		"hsb    zoom  zoom";
 	grid-template-columns: 1fr auto auto;
 	grid-template-rows: 1fr auto;
+	overflow: hidden; // to hide selection rect outside this control
 }
 
 .dummy {
@@ -35,4 +36,8 @@ canvas.render-surface {
 
 .horz {
 	grid-area: hsb;
+}
+
+.content {
+	grid-area: zoom;
 }

@@ -15,7 +15,8 @@ import {
 	Spherical,
 	TOUCH,
 	Vector2,
-	Vector3
+	Vector3,
+	Matrix4
 } from "three";
 
 const MOUSE_SELECT = 999;
@@ -27,7 +28,7 @@ const MOUSE_SELECT = 999;
 //    Zoom - middle mouse, or mousewheel / touch: two-finger spread or squish
 //    Pan - right mouse, or left mouse + ctrl/meta/shiftKey, or arrow keys / touch: two-finger move
 
-const OrbitControls = function (object, domElement) {
+const OrbitControls = function (this: any, object: { up: Vector3; }, domElement: Element | undefined) {
 
 	this.object = object;
 
@@ -153,9 +154,12 @@ const OrbitControls = function (object, domElement) {
 			};
 		}
 		else {
+			const rect = scope.domElement.getBoundingClientRect();
 			return {
-				left, right,
-				top, bottom,
+				left: left - rect.left,
+				right: right - rect.left,
+				top: top - rect.top,
+				bottom: bottom - rect.top,
 				width: right - left,
 				height: bottom - top
 			};
@@ -369,18 +373,18 @@ const OrbitControls = function (object, domElement) {
 		return Math.pow(0.840896415253714543, scope.zoomSpeed);
 	}
 
-	function rotateLeft(angle) {
+	function rotateLeft(angle: number) {
 		sphericalDelta.theta -= angle;
 	}
 
-	function rotateUp(angle) {
+	function rotateUp(angle: number) {
 		sphericalDelta.phi -= angle;
 	}
 
 	var panLeft = function () {
 		var v = new Vector3();
 
-		return function panLeft(distance, objectMatrix) {
+		return function panLeft(distance: number, objectMatrix: Matrix4) {
 
 			v.setFromMatrixColumn(objectMatrix, 0); // get X column of objectMatrix
 			v.multiplyScalar(- distance);
@@ -393,7 +397,7 @@ const OrbitControls = function (object, domElement) {
 	var panUp = function () {
 		var v = new Vector3();
 
-		return function panUp(distance, objectMatrix) {
+		return function panUp(distance: number, objectMatrix: Matrix4) {
 			if (scope.screenSpacePanning === true) {
 				v.setFromMatrixColumn(objectMatrix, 1);
 			} else {
@@ -411,7 +415,7 @@ const OrbitControls = function (object, domElement) {
 
 		var offset = new Vector3();
 
-		return function pan(deltaX, deltaY) {
+		return function pan(deltaX: number, deltaY: number) {
 
 			var element = scope.domElement === document ? scope.domElement.body : scope.domElement;
 
@@ -459,7 +463,7 @@ const OrbitControls = function (object, domElement) {
 		}
 	}
 
-	function dollyIn(dollyScale) {
+	function dollyIn(dollyScale: number) {
 		if (scope.object.isPerspectiveCamera) {
 			scale /= dollyScale;
 		} else if (scope.object.isOrthographicCamera) {
@@ -472,7 +476,7 @@ const OrbitControls = function (object, domElement) {
 		}
 	}
 
-	function dollyOut(dollyScale) {
+	function dollyOut(dollyScale: number) {
 
 		if (scope.object.isPerspectiveCamera) {
 
@@ -492,7 +496,7 @@ const OrbitControls = function (object, domElement) {
 	// event callbacks - update the object state
 	//
 
-	function handleMouseDownRotate(event) {
+	function handleMouseDownRotate(event: MouseEvent) {
 
 		//console.log( 'handleMouseDownRotate' );
 
@@ -500,7 +504,7 @@ const OrbitControls = function (object, domElement) {
 
 	}
 
-	function handleMouseDownDolly(event) {
+	function handleMouseDownDolly(event: any) {
 
 		//console.log( 'handleMouseDownDolly' );
 
@@ -508,7 +512,7 @@ const OrbitControls = function (object, domElement) {
 
 	}
 
-	function handleMouseDownPan(event) {
+	function handleMouseDownPan(event: any) {
 
 		//console.log( 'handleMouseDownPan' );
 
@@ -516,7 +520,7 @@ const OrbitControls = function (object, domElement) {
 
 	}
 
-	function handleMouseMoveRotate(event) {
+	function handleMouseMoveRotate(event: any) {
 
 		//console.log( 'handleMouseMoveRotate' );
 
@@ -536,7 +540,7 @@ const OrbitControls = function (object, domElement) {
 
 	}
 
-	function handleMouseMoveDolly(event) {
+	function handleMouseMoveDolly(event: any) {
 
 		const x = (scope.object.left + (event.clientX / scope.domElement.clientWidth) * (scope.object.right - scope.object.left)) / scope.object.zoom + scope.target.x;
 		const y = (scope.object.top + (event.clientY / scope.domElement.clientHeight) * (scope.object.top - scope.object.bottom)) / scope.object.zoom + scope.target.y;
@@ -565,7 +569,7 @@ const OrbitControls = function (object, domElement) {
 // console.log(nx-x, ny-y);
 	}
 
-	function handleMouseMovePan(event) {
+	function handleMouseMovePan(event: any) {
 
 		//console.log( 'handleMouseMovePan' );
 
@@ -587,7 +591,7 @@ const OrbitControls = function (object, domElement) {
 
 	}
 
-	function handleMouseWheel(event) {
+	function handleMouseWheel(event: any) {
 
 		// console.log( 'handleMouseWheel' );
 		const x = (scope.object.left + (event.clientX / scope.domElement.clientWidth) * (scope.object.right - scope.object.left)) / scope.object.zoom + scope.target.x;
@@ -617,7 +621,7 @@ const OrbitControls = function (object, domElement) {
 
 	}
 
-	function handleKeyDown(event) {
+	function handleKeyDown(event: any) {
 
 		// console.log( 'handleKeyDown' );
 
@@ -666,7 +670,7 @@ const OrbitControls = function (object, domElement) {
 		}
 	}
 
-	function handleTouchStartRotate(event) {
+	function handleTouchStartRotate(event: any) {
 
 		//console.log( 'handleTouchStartRotate' );
 
@@ -685,7 +689,7 @@ const OrbitControls = function (object, domElement) {
 
 	}
 
-	function handleTouchStartPan(event) {
+	function handleTouchStartPan(event: any) {
 
 		//console.log( 'handleTouchStartPan' );
 
@@ -704,7 +708,7 @@ const OrbitControls = function (object, domElement) {
 
 	}
 
-	function handleTouchStartDolly(event) {
+	function handleTouchStartDolly(event: any) {
 
 		//console.log( 'handleTouchStartDolly' );
 
@@ -717,7 +721,7 @@ const OrbitControls = function (object, domElement) {
 
 	}
 
-	function handleTouchStartDollyPan(event) {
+	function handleTouchStartDollyPan(event: any) {
 
 		//console.log( 'handleTouchStartDollyPan' );
 
@@ -727,7 +731,7 @@ const OrbitControls = function (object, domElement) {
 
 	}
 
-	function handleTouchStartDollyRotate(event) {
+	function handleTouchStartDollyRotate(event: any) {
 
 		//console.log( 'handleTouchStartDollyRotate' );
 
@@ -737,7 +741,7 @@ const OrbitControls = function (object, domElement) {
 
 	}
 
-	function handleTouchMoveRotate(event) {
+	function handleTouchMoveRotate(event: any) {
 
 		//console.log( 'handleTouchMoveRotate' );
 
@@ -766,7 +770,7 @@ const OrbitControls = function (object, domElement) {
 
 	}
 
-	function handleTouchMovePan(event) {
+	function handleTouchMovePan(event: any) {
 
 		//console.log( 'handleTouchMoveRotate' );
 
@@ -791,7 +795,7 @@ const OrbitControls = function (object, domElement) {
 
 	}
 
-	function handleTouchMoveDolly(event) {
+	function handleTouchMoveDolly(event: any) {
 
 		//console.log( 'handleTouchMoveRotate' );
 
@@ -810,7 +814,7 @@ const OrbitControls = function (object, domElement) {
 
 	}
 
-	function handleTouchMoveDollyPan(event) {
+	function handleTouchMoveDollyPan(event: any) {
 
 		//console.log( 'handleTouchMoveDollyPan' );
 
@@ -820,7 +824,7 @@ const OrbitControls = function (object, domElement) {
 
 	}
 
-	function handleTouchMoveDollyRotate(event) {
+	function handleTouchMoveDollyRotate(event: any) {
 
 		//console.log( 'handleTouchMoveDollyPan' );
 
@@ -863,7 +867,7 @@ const OrbitControls = function (object, domElement) {
 	// event handlers - FSM: listen for events and reset state
 	//
 
-	function onMouseDown(event) {
+	function onMouseDown(event: any) {
 
 		if (scope.enabled === false) return;
 
@@ -961,7 +965,7 @@ const OrbitControls = function (object, domElement) {
 		}
 	}
 
-	function onMouseMove(event) {
+	function onMouseMove(event: any) {
 		if (scope.enabled === false) return;
 
 		event.preventDefault();
@@ -994,7 +998,7 @@ const OrbitControls = function (object, domElement) {
 		// console.log(x, y, scope.target);
 	}
 
-	function onMouseUp(event) {
+	function onMouseUp(event: any) {
 
 		if (scope.enabled === false) return;
 
@@ -1012,7 +1016,7 @@ const OrbitControls = function (object, domElement) {
 
 	}
 
-	function onMouseWheel(event) {
+	function onMouseWheel(event: any) {
 
 		if (scope.enabled === false || scope.enableZoom === false || (state !== STATE.NONE && state !== STATE.ROTATE)) return;
 
@@ -1027,7 +1031,7 @@ const OrbitControls = function (object, domElement) {
 
 	}
 
-	function onKeyDown(event) {
+	function onKeyDown(event: any) {
 
 		if (scope.enabled === false || scope.enableKeys === false || scope.enablePan === false) return;
 
@@ -1035,7 +1039,7 @@ const OrbitControls = function (object, domElement) {
 
 	}
 
-	function onTouchStart(event) {
+	function onTouchStart(event: any) {
 
 		if (scope.enabled === false) return;
 
@@ -1121,7 +1125,7 @@ const OrbitControls = function (object, domElement) {
 
 	}
 
-	function onTouchMove(event) {
+	function onTouchMove(event: any) {
 
 		if (scope.enabled === false) return;
 
@@ -1178,7 +1182,7 @@ const OrbitControls = function (object, domElement) {
 
 	}
 
-	function onTouchEnd(event) {
+	function onTouchEnd(event: any) {
 
 		if (scope.enabled === false) return;
 
@@ -1190,7 +1194,7 @@ const OrbitControls = function (object, domElement) {
 
 	}
 
-	function onContextMenu(event) {
+	function onContextMenu(event: any) {
 
 		if (scope.enabled === false) return;
 
@@ -1352,8 +1356,11 @@ Object.defineProperties(OrbitControls.prototype, {
 //    Orbit - right mouse, or left mouse + ctrl/meta/shiftKey / touch: two-finger rotate
 //    Zoom - middle mouse, or mousewheel / touch: two-finger spread or squish
 //    Pan - left mouse, or arrow keys / touch: one-finger move
+// interface MapControls {
+	// enableRotate: boolean;
+// }
 
-var MapControls = function (object, domElement) {
+var MapControls = function (this: any, object: THREE.Object3D, domElement: Element) {
 
 	OrbitControls.call(this, object, domElement);
 
@@ -1368,5 +1375,6 @@ var MapControls = function (object, domElement) {
 
 MapControls.prototype = Object.create(EventDispatcher.prototype);
 MapControls.prototype.constructor = MapControls;
+
 
 export { OrbitControls, MapControls };

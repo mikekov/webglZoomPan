@@ -1,7 +1,7 @@
 import { Component, OnInit, ViewEncapsulation, Input, ElementRef, NgZone, ViewChild, Output, EventEmitter, AfterViewInit, OnDestroy } from '@angular/core';
 import * as THREE from 'three';
 import ResizeObserver from 'resize-observer-polyfill';
-import { MapControls } from '../map-controls';
+import { MapControls } from '../utils/map-controls';
 import { clearScene } from '../utils/remove-object';
 
 // 2D viewer using webGL
@@ -35,10 +35,17 @@ export class TwoDViewerComponent implements OnInit, OnDestroy, AfterViewInit {
 	@Input()
 	set workAreaRect(rect: Rectangle) {
 		this._worldRect = rect;
+		this.updateCameraSize();
 	}
 
 	// options to customize viewer
-	@Input() options: ViewerOptions | undefined;
+	@Input()
+	set options(opt: ViewerOptions | undefined) {
+		this._options = opt;
+		this._scene.background = new THREE.Color(opt?.background || 0x000000);
+	// console.log('color', opt?.background);
+
+	}
 
 	// list of objects to show in a viewer
 	@Input()
@@ -52,6 +59,15 @@ export class TwoDViewerComponent implements OnInit, OnDestroy, AfterViewInit {
 		this.setTool(tool);
 	}
 
+	// show scrollbars?
+	@Input()
+	set showScrollbars(show: boolean) {
+		if (show !== this._showScrollbars) {
+			this._showScrollbars = show;
+			setTimeout(() => this.resize(), 1);
+		}
+	}
+
 	// current zoom level, where 1 means that workAreaRect fits the viewport
 	@Output() zoom = new EventEmitter<number>();
 
@@ -62,7 +78,7 @@ export class TwoDViewerComponent implements OnInit, OnDestroy, AfterViewInit {
 	}
 
 	// call this function before rendering scene
-	public preRender: Function;
+	public preRender: Function | undefined;
 
 	// rebuild scene if _objects array items change
 	public refresh() {
@@ -81,7 +97,7 @@ export class TwoDViewerComponent implements OnInit, OnDestroy, AfterViewInit {
 	}
 
 	// size of canvas in pixels
-	@ViewChild('canvasArea', undefined) _canvasArea: ElementRef;
+	@ViewChild('canvasArea') _canvasArea: ElementRef | undefined;
 	private get viewportSize(): { w: number, h: number } {
 		if (!this._canvasArea || !this._canvasArea.nativeElement) return { w: 0, h: 0 };
 		const w = this._canvasArea.nativeElement.clientWidth;
@@ -93,6 +109,8 @@ export class TwoDViewerComponent implements OnInit, OnDestroy, AfterViewInit {
 	private updateCameraSize() {
 		const size = this.viewportSize;
 		const camera = this._camera;
+		if (!camera) return;
+
 		let l = 0, r = 0, b = 0, t = 0;
 		if (this._worldRect) {
 			const rect = this._worldRect;
@@ -135,7 +153,10 @@ export class TwoDViewerComponent implements OnInit, OnDestroy, AfterViewInit {
 	}
 
 	ngOnInit() {
-		const opt = this.options || {};
+	}
+
+	ngAfterViewInit() {
+		const opt = this._options || {};
 		this._scene.background = new THREE.Color(opt.background || 0x000000);
 
 		this._camera = new THREE.OrthographicCamera(0, 0, 0, 0, 0, 1000);
@@ -145,17 +166,17 @@ export class TwoDViewerComponent implements OnInit, OnDestroy, AfterViewInit {
 		this._renderer.setPixelRatio(window.devicePixelRatio);
 
 		this._renderer.domElement.className = "render-surface";
-		this._root.nativeElement.appendChild(this._renderer.domElement);
+		this._root!.nativeElement.appendChild(this._renderer.domElement);
 		this.resize();
 
-		const controls = new MapControls(this._camera, this._renderer.domElement);
+		const controls = new (MapControls as any)(this._camera, this._renderer.domElement);
 		controls.enableRotate = false;
 		controls.minZoom = opt.minZoom || 1;
 		controls.maxZoom = opt.maxZoom || 1e8;
 		controls.zoomSpeed = opt.zoomSpeed || 4;
 		controls.screenSpacePanning = true;
 		controls.keyPanSpeed = 10 * window.devicePixelRatio;
-		controls.addEventListener('change', () => { this.render(); });
+		controls.addEventListener('change', () => { this.dirty(); });
 		controls.enableDamping = false;
 		controls.enableSelect = true;
 		controls.selecting = (finished: boolean) => {
@@ -171,7 +192,8 @@ export class TwoDViewerComponent implements OnInit, OnDestroy, AfterViewInit {
 					}
 					controls.clearSelectRect();
 				}
-				this.render();
+				// this.render();
+				this.dirty();
 			});
 		};
 		controls.limitOffset = (target: THREE.Vector3) => this.limitOffset(target);
@@ -179,19 +201,20 @@ export class TwoDViewerComponent implements OnInit, OnDestroy, AfterViewInit {
 		this.updateCurrentTool(this._tool);
 
 		this.render();
-	}
+	// }
 
-	ngAfterViewInit() {
+	// ngAfterViewInit() {
 		this._resize = new ResizeObserver(e => {
 			this.zone.run(() => { this.resize(); });
 		});
-		this._resize.observe(this._root.nativeElement);
+		if (this._root) this._resize.observe(this._root.nativeElement);
 	}
 
 	private resize() {
 		this.updateCameraSize();
 		const size = this.viewportSize;
-		this._renderer.setSize(size.w, size.h, true);
+		if (this._renderer) this._renderer.setSize(size.w, size.h, true);
+		// this.dirty();
 		this.render();
 	}
 
@@ -202,7 +225,7 @@ export class TwoDViewerComponent implements OnInit, OnDestroy, AfterViewInit {
 		const scene = this._scene;
 		let same = true;
 		if (objects.length === scene.children.length) {
-			for (let i = 0; objects.length; ++i) {
+			for (let i = 0; i < objects.length; ++i) {
 				const a = objects[i];
 				const b = scene.children[i];
 				if (a !== b) {
@@ -220,14 +243,15 @@ export class TwoDViewerComponent implements OnInit, OnDestroy, AfterViewInit {
 		this.syncScene(objects);
 	}
 
-	private syncScene(objects: THREE.Object3D[]) {
+	private syncScene(objects: THREE.Object3D[] | undefined) {
 		const scene = this._scene;
 		// remove objects, do not dispose
 		clearScene(scene, false);
 
 		if (objects) objects.forEach(obj => { if (obj) scene.add(obj); });
 
-		this.render();
+		// this.render();
+		this.dirty();
 	}
 
 	// limit camera panning to work area
@@ -284,7 +308,7 @@ export class TwoDViewerComponent implements OnInit, OnDestroy, AfterViewInit {
 	}
 
 	render() {
-		if (this._renderer) {
+		if (this._renderer && this._camera) {
 			if (this.preRender) {
 				this.preRender(this);
 			}
@@ -297,13 +321,14 @@ export class TwoDViewerComponent implements OnInit, OnDestroy, AfterViewInit {
 			}
 		}
 		// if (this.renderer) console.log(this.renderer.info);
+		this._dirty = false;
 	}
 
 	get selectRect(): ClientRect {
 		return this._controls && this._controls.getSelectRect();
 	}
 
-	get selecting(): boolean {
+	public get selecting(): boolean {
 		return this._controls && this._controls.enableSelect && this._controls.hasSelectRect();
 	}
 
@@ -363,17 +388,42 @@ export class TwoDViewerComponent implements OnInit, OnDestroy, AfterViewInit {
 		}
 	}
 
-	@ViewChild('main', undefined) _root;
-	_controls: MapControls;
-	_camera: THREE.OrthographicCamera;
+	private dirty() {
+		if (this._camera) {
+			if (this._zoom !== this._camera.zoom) {
+				this._zoom = this._camera.zoom;
+				this.zoom.next(this._zoom);
+			}
+		}
+
+		if (this._dirty) return;
+
+		this._dirty = true;
+		if (this._timer) {
+			window.clearTimeout(this._timer);
+			this._timer = 0;
+		}
+		this._timer = window.setTimeout(() => {
+			this.render();
+			this._timer = 0;
+		}, 1);
+	}
+
+	@ViewChild('main', {static: true}) _root: ElementRef | undefined;
+	_controls: any;
+	_camera: THREE.OrthographicCamera | undefined;
 	_scene = new THREE.Scene();
-	_objects: THREE.Object3D[];
-	_renderer: THREE.WebGLRenderer;
-	_selectionWorldRect: ClientRect;
-	_resize: ResizeObserver;
+	_objects: THREE.Object3D[] | undefined;
+	_renderer: THREE.WebGLRenderer | undefined;
+	_selectionWorldRect: ClientRect | undefined;
+	_resize: ResizeObserver | undefined;
 	_zoom = 0;
 	_worldRect: Rectangle | undefined;
 	_tool: Tool = 'zoom';
+	_showScrollbars = true;
+	_dirty = false;
+	_timer = 0;
+	_options: ViewerOptions | undefined;
 }
 
 type Tool = 'none' | 'zoom' | 'select';

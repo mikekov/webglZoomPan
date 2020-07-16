@@ -1,10 +1,10 @@
-import { Component, OnInit, Input, OnDestroy, ViewEncapsulation, ViewChild, AfterViewInit } from '@angular/core';
+import { Component, OnInit, Input, OnDestroy, ViewEncapsulation, ViewChild, AfterViewInit, Output, EventEmitter } from '@angular/core';
 import * as THREE from 'three';
 import { createWaferShape } from '../utils/create-wafer-shape';
 import { createPoints } from '../utils/create-points';
 import { Rectangle, TwoDViewerComponent, ViewerOptions } from '../two-d-viewer/two-d-viewer.component';
 import { disposeObject3D, disposeObjects } from '../utils/remove-object';
-import { createRectangles, RectangleShape } from '../utils/create-rectangles';
+import { createRectangles, RectangleShape, ImageFragment } from '../utils/create-rectangles';
 
 // wafer geometry - all coordinates are world coordinates (uniform units, unit choice up to client)
 
@@ -16,6 +16,8 @@ export interface Die {
 	height: number;
 	fill: THREE.Color;
 	hatch?: THREE.Color;
+	marker?: THREE.Color;
+	image?: ImageFragment;
 }
 
 export interface DieMap {
@@ -53,6 +55,8 @@ export interface WaferOptions {
 	background: THREE.Color;
 	// max zoom factor: how far can wafer be magnified
 	maxZoom?: number;
+	// how fast to zoom in/out
+	zoomSpeed?: number;
 }
 
 @Component({
@@ -89,6 +93,24 @@ export class WaferMapComponent implements OnInit, OnDestroy, AfterViewInit {
 		this.setPoints(points);
 	}
 
+	// optional input: update texture used by dies (if any)
+	@Input()
+	set texture(tex: THREE.Texture) {
+		if (!this._dies || !this._viewer) return;
+
+		// const g = this._dies as THREE.Group;
+		// const mat = (g.children[g.children.length - 1] as THREE.Mesh).material as THREE.MeshBasicMaterial;
+
+		// mat.map = tex;
+		// mat.needsUpdate = true;
+		// this._viewer['dirty']();
+	}
+
+	// zoom level change forwarded from 2D viewer
+	@Output() zoom = new EventEmitter<number>();
+
+	@ViewChild('viewer') _viewer: TwoDViewerComponent | undefined;
+
 	constructor() {
 	}
 
@@ -100,25 +122,31 @@ export class WaferMapComponent implements OnInit, OnDestroy, AfterViewInit {
 	}
 
 	ngAfterViewInit() {
-		this.viewer.preRender = () => this.preRender();
+		if (this.viewer) this.viewer.preRender = () => this.preRender();
 	}
 
 	setWafer(wafer: WaferOptions) {
 		if (this._waferOptions === wafer || !wafer) return;
 
 		this._waferOptions = wafer;
+		// this._showScrollbars = true;
 
 		if (wafer) {
 			this._options = {
 				minZoom: 1,
 				maxZoom: wafer.maxZoom || 1e6,
+				zoomSpeed: wafer.zoomSpeed || 4,
 				background: wafer.background
 			};
+			// this._showScrollbars = !(this._options.minZoom === 1 && this._options.maxZoom === 1);
 		}
 
 		disposeObject3D(this._wafer);
+		this._wafer = undefined;
+		if (wafer.diameter > 0) {
 		this._wafer = createWaferShape(wafer.diameter, wafer.diameter / 100, wafer.orientationAngle, wafer.fill, wafer.perimeter);
 		this._wafer.position.set(0, 0, 100);
+		}
 		this.buildScene();
 	}
 
@@ -128,15 +156,18 @@ export class WaferMapComponent implements OnInit, OnDestroy, AfterViewInit {
 		this._dieMap = dieMap;
 		const waferColor = this._waferOptions && this._waferOptions.fill || new THREE.Color(0);
 
+		// note: this disposes of textures too
 		disposeObject3D(this._dies);
 		this._dies = dieMap ? createRectangles(dieMap.map.map(die =>
 			({...die, crosshatch: !!die.hatch, line: waferColor} as RectangleShape)
 		)) : null;
-		if (this._dies && dieMap.clippingEdge) {
+		if (this._dies && dieMap && dieMap.clippingEdge) {
 			// add clipping mask
 			//
 		}
-		this._dies.position.set(0, 0, 110);
+		//TODO: rotate die map?
+		if (this._dies) this._dies.position.set(0, 0, 110);
+
 		this.buildScene();
 	}
 
@@ -146,7 +177,7 @@ export class WaferMapComponent implements OnInit, OnDestroy, AfterViewInit {
 		this._points = points;
 
 		disposeObject3D(this._defects);
-		this._defects = null;
+		this._defects = undefined;
 
 		const opt = this._pointOptions || {} as PointOptions;
 		const colorPalette = opt.colorPalette || [new THREE.Color(0)];
@@ -172,7 +203,7 @@ export class WaferMapComponent implements OnInit, OnDestroy, AfterViewInit {
 			const rect = this._selectionWorldRect;
 			const selection = rect && rect.width > 0 && rect.height > 0;
 			this._defectMaterial.uniforms['selectionTest'].value = selection ? true : false;
-			if (selection) {
+			if (selection && rect) {
 				this._defectMaterial.uniforms['topRight'].value = new THREE.Vector2(rect.right, rect.top);
 				this._defectMaterial.uniforms['bottomLeft'].value = new THREE.Vector2(rect.left, rect.bottom);
 			}
@@ -192,18 +223,31 @@ export class WaferMapComponent implements OnInit, OnDestroy, AfterViewInit {
 		if (this.viewer) this.viewer.render();
 	}
 
-	@ViewChild(TwoDViewerComponent, undefined) viewer: TwoDViewerComponent;
+	_zoomChanged(zoom: number) {
+		this._curZoom = zoom;
+		this.zoom.next(zoom);
+	}
+
+	_showScrollbars(): boolean {
+		if (!this._waferOptions || this._curZoom > 1.0) return true;
+
+		return false;
+	}
+
+	@ViewChild(TwoDViewerComponent) viewer: TwoDViewerComponent | undefined;
 	_defCount = 10;
-	_defects: THREE.Points;
-	_defectMaterial: THREE.ShaderMaterial;
-	_selectionWorldRect: ClientRect;
+	_defects: THREE.Points | undefined;
+	_defectMaterial: THREE.ShaderMaterial | undefined;
+	_selectionWorldRect: ClientRect | undefined;
 	_worldRect: Rectangle | undefined;
-	_objects: THREE.Object3D[] = [];
+	_objects: (THREE.Object3D | undefined | null)[] = [];
 	_options: ViewerOptions = {minZoom: 1, maxZoom: 1e6};
-	_waferOptions: WaferOptions;
-	_dieMap: DieMap;
-	_pointOptions: PointOptions;
-	_wafer: THREE.Object3D;
-	_dies: THREE.Object3D;
-	_points: number[];
+	_waferOptions: WaferOptions | undefined;
+	_dieMap: DieMap | undefined | null;
+	_pointOptions: PointOptions | undefined;
+	_wafer: THREE.Object3D | undefined;
+	_dies: THREE.Object3D | undefined | null;
+	_points: number[] | undefined;
+	// _showScrollbars = true;
+	_curZoom = 1;
 }

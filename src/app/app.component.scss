@@ -8,8 +8,8 @@
 	height: 100%;
 	display: grid;
 	grid-template:
-		"wafer params";
-	grid-template-columns: 1fr 160px;
+		"pad wafer params";
+	grid-template-columns: 100px 1fr 160px;
 	grid-template-rows: 1fr;
 }
 
@@ -20,4 +20,8 @@
 .params {
 	grid-area: params;
 	padding-left: 8px;
+}
+
+.pad {
+	grid-area: pad;
 }

@@ -2,6 +2,7 @@ import { Component, OnInit, AfterViewInit } from '@angular/core';
 import { WaferOptions, DieMap, PointOptions } from './wafer-map/wafer-map.component';
 import { WAFER, PERIMETER, BACKGND, generateDieMap, DEFECTS_INACTIVE, RED, GREEN, generateDefects } from './test';
 import * as THREE from 'three';
+import { HttpClient } from '@angular/common/http';
 
 
 @Component({
@@ -10,7 +11,7 @@ import * as THREE from 'three';
 	styleUrls: ['./app.component.scss']
 })
 export class AppComponent implements OnInit, AfterViewInit {
-	constructor() {
+	constructor(private http: HttpClient) {
 		const d = this.diameter + 2;
 		this.worldCanvas = { x: -d / 2, y: -d / 2, width: d, height: d };
 	}
@@ -34,6 +35,11 @@ export class AppComponent implements OnInit, AfterViewInit {
 			colorPalette: [DEFECTS_INACTIVE, RED, GREEN],
 			selectedColor: null
 		};
+
+		// test on-line source
+		// this.http.get("http://localhost:5990/r1/defects/xyattr?layout=wafer").subscribe(d => {
+		// 	this.defects = d as number[];
+		// });
 
 		this.genDefects("3");
 	}
@@ -79,7 +85,7 @@ export class AppComponent implements OnInit, AfterViewInit {
 	colormap = true;
 	dotSize = 3;
 	defCount = 100;
-	worldCanvas;
+	worldCanvas: { x: number; y: number; width: number; height: number; };
 	wafer: WaferOptions;
 	dieMap: DieMap;
 	pointOptions: PointOptions;

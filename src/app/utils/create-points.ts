@@ -14,7 +14,7 @@ import * as THREE from 'three';
 export function createPoints(data: number[], palette: THREE.Color[], selected: THREE.Color, dotSize: number, boundingSphereRadius: number):
 	{ points: THREE.Points, material: THREE.ShaderMaterial } {
 	const geo = new THREE.BufferGeometry();
-	geo.addAttribute('position', new THREE.Float32BufferAttribute(data, 3));
+	geo.setAttribute('position', new THREE.Float32BufferAttribute(data, 3));
 	// need to patch bounding sphere, since third number in (x, y, attr) triple is an attribute rather than Z coordinate
 	geo.computeBoundingSphere = () => {
 		if (geo.boundingSphere === null) { geo.boundingSphere = new THREE.Sphere(); }

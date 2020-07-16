@@ -35,7 +35,7 @@ export function createWaferShape(diameter: number, notchSize: number, notchAngle
 
 	const geo = new THREE.BufferGeometry();
 	geo.setIndex(indices);
-	geo.addAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+	geo.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
 
 	const material = new THREE.MeshBasicMaterial({color: fill});
 	const wafer = new THREE.Mesh(geo, material);
@@ -45,7 +45,7 @@ export function createWaferShape(diameter: number, notchSize: number, notchAngle
 	const outline = new THREE.BufferGeometry();
 	// remove center point
 	for (let i = 0; i < 3; ++i) {	vertices.shift(); }
-	outline.addAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+	outline.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
 	const line = new THREE.LineLoop(outline, m);
 	line.position.set(0, 0, 1);
 
